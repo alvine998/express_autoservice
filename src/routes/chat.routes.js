@@ -85,6 +85,34 @@ router.get(
  *       201:
  *         description: Message sent
  */
+const upload = require("../middlewares/upload.middleware");
+
+/**
+ * @swagger
+ * /api/v1/chats/upload:
+ *   post:
+ *     summary: Upload a chat image
+ *     tags: [Chat]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Image uploaded successfully
+ */
+router.post(
+  "/upload",
+  authenticate,
+  upload.single("image"),
+  chatController.uploadChatImage,
+);
+
 router.get("/:chatId/messages", authenticate, chatController.getMessages);
 router.post("/:chatId/messages", authenticate, chatController.sendMessage);
 

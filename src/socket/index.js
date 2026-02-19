@@ -42,15 +42,35 @@ module.exports = (io) => {
       console.log(`User ${socket.user.id} joined chat room: ${chatId}`);
     });
 
-    socket.on("chat:message", (data) => {
-      // Broadcast to chat room
-      socket.to(`chat:${data.chatId}`).emit("chat:message", {
-        chatId: data.chatId,
-        senderId: socket.user.id,
-        message: data.message,
-        messageType: data.messageType || "text",
-        createdAt: new Date(),
-      });
+    socket.on("chat:message", async (data) => {
+      try {
+        const { chatId, message, messageType } = data;
+
+        // Save to database
+        const { ChatMessage, User } = require("../models");
+        const chatMessage = await ChatMessage.create({
+          chatId,
+          senderId: socket.user.id,
+          message,
+          messageType: messageType || "text",
+        });
+
+        const fullMessage = await ChatMessage.findByPk(chatMessage.id, {
+          include: [
+            {
+              model: User,
+              as: "sender",
+              attributes: ["id", "fullName", "avatarUrl"],
+            },
+          ],
+        });
+
+        // Broadcast to chat room (including sender for confirmation)
+        io.to(`chat:${chatId}`).emit("chat:message", fullMessage);
+      } catch (error) {
+        console.error("Socket chat:message error:", error);
+        socket.emit("error", { message: "Failed to send message" });
+      }
     });
 
     socket.on("chat:typing", (data) => {

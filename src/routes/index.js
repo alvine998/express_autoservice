@@ -16,6 +16,7 @@ const chatRoutes = require("./chat.routes");
 const notificationRoutes = require("./notification.routes");
 const locationRoutes = require("./location.routes");
 const verificationRoutes = require("./verification.routes");
+const matchmakingRoutes = require("./matchmaking.routes");
 const adminRoutes = require("./admin.routes");
 
 // Mount routes
@@ -31,6 +32,7 @@ router.use("/chats", chatRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/locations", locationRoutes);
 router.use("/verifications", verificationRoutes);
+router.use("/matchmaking", matchmakingRoutes);
 router.use("/admin", adminRoutes);
 
 // Service routes (mounted at /api/v1/services)

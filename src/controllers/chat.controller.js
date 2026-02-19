@@ -94,7 +94,32 @@ exports.sendMessage = async (req, res, next) => {
       ],
     });
 
+    // Broadcast via Socket.IO
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`chat:${chat.id}`).emit("chat:message", fullMessage);
+    }
+
     return created(res, fullMessage, "Message sent");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/v1/chats/upload
+ * Upload chat image
+ */
+exports.uploadChatImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw ApiError.badRequest("Please upload an image");
+    }
+
+    // Return the relative path of the uploaded file
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    return success(res, { imageUrl }, "Image uploaded successfully");
   } catch (error) {
     next(error);
   }
