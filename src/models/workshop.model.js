@@ -15,6 +15,10 @@ const Workshop = sequelize.define(
       unique: true,
       references: { model: "users", key: "id" },
     },
+    status: {
+      type: DataTypes.ENUM("online", "offline"),
+      defaultValue: "offline",
+    },
     name: {
       type: DataTypes.STRING(200),
       allowNull: false,
@@ -65,6 +69,7 @@ const Workshop = sequelize.define(
     indexes: [
       { fields: ["user_id"], unique: true },
       { fields: ["latitude", "longitude"] },
+      { fields: ["status"] },
       { fields: ["is_active"] },
       { fields: ["rating"] },
     ],

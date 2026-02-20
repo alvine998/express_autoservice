@@ -34,6 +34,48 @@ router.get("/", workshopController.getAll);
 
 /**
  * @swagger
+ * /api/v1/workshops/nearby:
+ *   get:
+ *     summary: Find nearby workshops (e.g. Tambal Ban)
+ *     tags: [Workshops]
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: latitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: User latitude
+ *       - in: query
+ *         name: longitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: User longitude
+ *       - in: query
+ *         name: radius
+ *         schema:
+ *           type: number
+ *           default: 10
+ *         description: Search radius in km
+ *       - in: query
+ *         name: service
+ *         schema:
+ *           type: string
+ *         description: Service keyword filter (e.g. "Tambal Ban")
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: List of nearby workshops sorted by distance
+ */
+router.get("/nearby", workshopController.findNearby);
+
+/**
+ * @swagger
  * /api/v1/workshops/profile:
  *   put:
  *     summary: Update workshop profile
@@ -71,6 +113,34 @@ router.put(
   authenticate,
   authorize("workshop_owner"),
   workshopController.updateProfile,
+);
+
+/**
+ * @swagger
+ * /api/v1/workshops/status:
+ *   patch:
+ *     summary: Toggle workshop online/offline status
+ *     tags: [Workshops]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [online, offline]
+ *     responses:
+ *       200:
+ *         description: Status updated
+ */
+router.patch(
+  "/status",
+  authenticate,
+  authorize("workshop_owner"),
+  workshopController.updateStatus,
 );
 
 /**

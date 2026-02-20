@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const {
   Workshop,
   User,
@@ -8,6 +9,7 @@ const {
 } = require("../models");
 const ApiError = require("../utils/apiError");
 const { success, paginated } = require("../utils/apiResponse");
+const { haversineDistance } = require("../utils/geo");
 
 /**
  * GET /api/v1/workshops
@@ -45,6 +47,82 @@ exports.getAll = async (req, res, next) => {
     });
 
     return paginated(res, { ...result, page, limit });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/workshops/nearby
+ * Find nearby workshops, optionally filtered by service keyword (e.g. "Tambal Ban")
+ */
+exports.findNearby = async (req, res, next) => {
+  try {
+    const { latitude, longitude, radius = 10, service, limit = 20 } = req.query;
+
+    if (!latitude || !longitude) {
+      throw ApiError.badRequest("Latitude and longitude are required");
+    }
+
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const radiusKm = parseFloat(radius);
+
+    // Build service filter
+    const serviceWhere = { isActive: true };
+    if (service) {
+      serviceWhere["$service.name$"] = { [Op.like]: `%${service}%` };
+    }
+
+    const workshops = await Workshop.findAll({
+      where: {
+        isActive: true,
+        status: "online",
+        latitude: { [Op.ne]: null },
+        longitude: { [Op.ne]: null },
+      },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "fullName", "avatarUrl"],
+        },
+        {
+          model: WorkshopService,
+          as: "workshopServices",
+          where: service ? { isActive: true } : undefined,
+          required: !!service,
+          include: [
+            {
+              model: Service,
+              as: "service",
+              where: service
+                ? { name: { [Op.like]: `%${service}%` } }
+                : undefined,
+              required: !!service,
+              include: [{ model: ServiceCategory, as: "category" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const nearby = workshops
+      .map((w) => {
+        const wLat = parseFloat(w.latitude);
+        const wLng = parseFloat(w.longitude);
+        if (!wLat || !wLng) return null;
+        const distance = haversineDistance(lat, lng, wLat, wLng);
+        return {
+          ...w.toJSON(),
+          distance: Math.round(distance * 100) / 100,
+        };
+      })
+      .filter((w) => w && w.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, parseInt(limit, 10));
+
+    return success(res, nearby, `Found ${nearby.length} nearby workshops`);
   } catch (error) {
     next(error);
   }
@@ -184,6 +262,30 @@ exports.removeService = async (req, res, next) => {
     await workshopService.destroy();
 
     return success(res, null, "Service removed from workshop");
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/v1/workshops/status
+ */
+exports.updateStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    if (!["online", "offline"].includes(status)) {
+      throw ApiError.badRequest("Status must be online or offline");
+    }
+
+    const workshop = await Workshop.findOne({ where: { userId: req.user.id } });
+    if (!workshop) {
+      throw ApiError.notFound("Workshop profile not found");
+    }
+
+    workshop.status = status;
+    await workshop.save();
+
+    return success(res, { status: workshop.status }, "Workshop status updated");
   } catch (error) {
     next(error);
   }
